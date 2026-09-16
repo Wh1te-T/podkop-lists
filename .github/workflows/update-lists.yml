@@ -1,0 +1,71 @@
+name: Update Russia Lists
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/**'
+      - 'custom/**'
+      - '.github/workflows/update-lists.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-lists
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download sources
+        run: |
+          mkdir -p temp
+          base="https://github.com/lib4u/amnezia-tunneling-ru/releases/download/latest"
+          curl -fsSL --retry 3 -o temp/amnezia.json         "$base/amnezia.json"
+          curl -fsSL --retry 3 -o temp/amnezia-ip-lite.json "$base/amnezia-ip-lite.json"
+          jq -e 'type == "array"' temp/amnezia.json >/dev/null
+          jq -e 'type == "array"' temp/amnezia-ip-lite.json >/dev/null
+
+      - name: Build lists
+        run: python3 scripts/build.py
+
+      - name: Install sing-box
+        run: |
+          tag=$(curl -fsSL -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                https://api.github.com/repos/SagerNet/sing-box/releases/latest | jq -r .tag_name)
+          ver="${tag#v}"
+          curl -fsSL -o sb.tar.gz \
+            "https://github.com/SagerNet/sing-box/releases/download/${tag}/sing-box-${ver}-linux-amd64.tar.gz"
+          tar -xzf sb.tar.gz
+          sudo install "sing-box-${ver}-linux-amd64/sing-box" /usr/local/bin/sing-box
+          sing-box version
+
+      - name: Compile .srs
+        run: |
+          for f in lists/russia_domains lists/russia_subnets; do
+            sing-box rule-set compile --output "$f.srs" "$f.json"
+          done
+          ls -la lists/
+
+      - name: Commit changes
+        run: |
+          rm -rf temp sb.tar.gz sing-box-*
+          git add lists/
+          if git diff --cached --quiet; then
+            echo "Изменений нет"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Обновление списков $(date -u +%Y-%m-%d)"
+          git push
