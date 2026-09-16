@@ -1,6 +1,6 @@
 # Списки исключений для Podkop
 
-Российские домены и подсети для секции **Exclusion** в [Podkop](https://github.com/itdoginfo/podkop): эти ресурсы идут напрямую, минуя VPN/Proxy. Списки обновляются каждый день.
+Российские домены и подсети для секции **Exclusion** в [Podkop](https://github.com/itdoginfo/podkop): эти ресурсы идут напрямую, минуя VPN/Proxy. Списки обновляются каждый день
 
 ## Ссылки для Podkop
 
@@ -16,4 +16,4 @@ https://raw.githubusercontent.com/Wh1te-T/podkop-lists/main/lists/russia_domains
 https://raw.githubusercontent.com/Wh1te-T/podkop-lists/main/lists/russia_subnets.srs
 ```
 
-Те же списки доступны как `.json` и `.lst` в папке `lists/`.
+Те же списки доступны как `.json` и `.lst` в папке `lists/`
