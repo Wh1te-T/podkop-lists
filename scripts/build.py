@@ -17,7 +17,6 @@ TEMP = ROOT / "temp"
 OUT = ROOT / "lists"
 CUSTOM = ROOT / "custom"
 
-# Защита от публикации пустых/битых списков, если источник отдаст мусор
 MIN_DOMAINS = 1000
 MIN_SUBNETS = 200
 
@@ -25,7 +24,6 @@ DOMAIN_RE = re.compile(
     r"^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{0,62}$"
 )
 
-# Служебные зоны из amnezia.json: нужны Amnezia для локальной сети, Podkop они не нужны
 JUNK_SUFFIXES = (".arpa", ".local", ".lan", ".internal", ".localdomain",
                  ".localhost", ".invalid", ".example", ".test")
 JUNK_EXACT = {"asusrouter.com", "miwifi.com", "hiwifi.com",
@@ -65,7 +63,6 @@ def build_domains():
     exclude = read_lst("exclude_domains.lst")
     include = read_lst("include_domains.lst")
 
-    # DOMAIN_RE требует хотя бы одну точку, поэтому "local", "lan", "moscow" и т.п. отсеются
     valid = {d for d in raw if DOMAIN_RE.match(d) and not is_junk(d)}
     dropped = len(raw) - len(valid)
     valid |= {d for d in include if DOMAIN_RE.match(d)}
@@ -84,7 +81,6 @@ def build_subnets():
     include = read_lst("include_subnets.lst")
 
     nets, foreign, bad = set(), 0, 0
-    # ВАЖНО: в amnezia-ip-lite.json подсеть лежит в поле "hostname", а не "ip_cidr"
     for item in data:
         try:
             net = ipaddress.ip_network(str(item.get("hostname", "")).strip(), strict=False)
@@ -94,9 +90,6 @@ def build_subnets():
         if net.version != 4 or not net.is_global:
             bad += 1
             continue
-        # Узкие префиксы (/25–/32) в этом файле — адреса вне российского сегмента:
-        # CloudFront, Cloudflare, 1.1.1.1 и т.п. Это общие anycast-IP: их исключение
-        # отправит мимо VPN и чужие заблокированные сайты на тех же адресах.
         if net.prefixlen > 24:
             foreign += 1
             continue
