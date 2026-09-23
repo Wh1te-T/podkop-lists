@@ -1,0 +1,79 @@
+name: Build v2rayN (Xray) rules
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "lists/russia_domains.lst"
+      - "lists/russia_subnets.lst"
+      - ".github/workflows/v2rayn-xray-rules.yml"
+  schedule:
+    - cron: "15 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: v2rayn-xray-rules
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate lists/v2rayn_xray_rules.json
+        shell: python
+        run: |
+          import ipaddress, json, sys
+          from pathlib import Path
+
+          def read(path):
+              out, seen = [], set()
+              for line in Path(path).read_text(encoding="utf-8").splitlines():
+                  s = line.split("#", 1)[0].strip()
+                  if s and s not in seen:
+                      seen.add(s)
+                      out.append(s)
+              return out
+
+          prefixes = ("domain:", "full:", "regexp:", "keyword:", "geosite:", "ext:")
+          domains = [d if d.startswith(prefixes) else "domain:" + d.lstrip(".").lower()
+                     for d in read("lists/russia_domains.lst")]
+
+          subnets = []
+          for s in read("lists/russia_subnets.lst"):
+              try:
+                  subnets.append(str(ipaddress.ip_network(s, strict=False)))
+              except ValueError:
+                  print(f"::warning::пропущена некорректная подсеть: {s}")
+
+          if not domains or not subnets:
+              sys.exit("Пустой список — файл не обновляю")
+
+          rules = [
+              {"remarks": "Локальная сеть напрямую", "outboundTag": "direct",
+               "ip": ["geoip:private"], "enabled": True},
+              {"remarks": "RU домены напрямую", "outboundTag": "direct",
+               "domain": domains, "enabled": True},
+              {"remarks": "RU подсети напрямую", "outboundTag": "direct",
+               "ip": subnets, "enabled": True},
+          ]
+          Path("lists/v2rayn_xray_rules.json").write_text(
+              json.dumps(rules, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          print(f"доменов: {len(domains)}, подсетей: {len(subnets)}")
+
+      - name: Commit if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lists/v2rayn_xray_rules.json
+          if git diff --cached --quiet; then
+            echo "Изменений нет"
+            exit 0
+          fi
+          git commit -m "v2rayN Xray rules $(date -u +%F)"
+          git pull --rebase
+          git push
