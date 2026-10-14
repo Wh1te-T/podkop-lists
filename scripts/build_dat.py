@@ -1,14 +1,5 @@
 #!/usr/bin/env python3
-"""
-Сборка .dat-файлов для Xray (v2rayNG, v2rayN) из lists/*.lst.
 
-lists/russia_domains.lst -> lists/podkop-ru-site.dat  (GeoSiteList, код RU)
-lists/russia_subnets.lst -> lists/podkop-ru-ip.dat    (GeoIPList,   код RU)
-
-В правилах Xray: ext:podkop-ru-site.dat:ru  и  ext:podkop-ru-ip.dat:ru
-Только стандартная библиотека Python, protobuf кодируется вручную
-по схеме common/geodata/geodat.proto из Xray-core.
-"""
 import ipaddress
 import sys
 from pathlib import Path
@@ -81,7 +72,7 @@ def main() -> None:
     domains = read_list(LISTS / "russia_domains.lst")
     subnets = read_list(LISTS / "russia_subnets.lst")
     if len(domains) < 100 or len(subnets) < 50:
-        sys.exit("Списки подозрительно короткие — .dat не обновляю")
+        sys.exit("Списки короткие — .dat не обновлен")
     (LISTS / "podkop-ru-site.dat").write_bytes(build_site(domains))
     (LISTS / "podkop-ru-ip.dat").write_bytes(build_ip(subnets))
     print(f"podkop-ru-site.dat: {len(domains)} доменов, podkop-ru-ip.dat: {len(subnets)} подсетей")
