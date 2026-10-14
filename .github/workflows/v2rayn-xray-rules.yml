@@ -6,6 +6,7 @@ on:
     paths:
       - "lists/russia_domains.lst"
       - "lists/russia_subnets.lst"
+      - "scripts/build_dat.py"
       - ".github/workflows/v2rayn-xray-rules.yml"
   schedule:
     - cron: "15 */6 * * *"
@@ -65,11 +66,14 @@ jobs:
               json.dumps(rules, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
           print(f"доменов: {len(domains)}, подсетей: {len(subnets)}")
 
+      - name: Generate .dat for v2rayNG (Xray ext:)
+        run: python3 scripts/build_dat.py
+
       - name: Commit if changed
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lists/v2rayn_xray_rules.json
+          git add lists/v2rayn_xray_rules.json lists/podkop-ru-site.dat lists/podkop-ru-ip.dat
           if git diff --cached --quiet; then
             echo "Изменений нет"
             exit 0
